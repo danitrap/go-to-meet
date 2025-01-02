@@ -60,7 +60,7 @@ func menuItemsFromMeetings(meetings []models.Meeting) []menuet.MenuItem {
 					meet.Summary,
 					meet.StartTime.Format("15:04")),
 				Clicked: func() {
-					browser.OpenMeetLink(meet.MeetLink)
+					browser.Open(meet.MeetLink)
 				},
 			})
 		}

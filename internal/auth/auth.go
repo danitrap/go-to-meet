@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/danitrap/go-to-meet/pkg/browser"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -90,6 +91,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 
 	authURL := config.AuthCodeURL("state")
 	fmt.Printf("Visit this URL to authorize the application:\n%v\n", authURL)
+	browser.Open(authURL)
 
 	code := <-codeChan
 
