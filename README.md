@@ -11,7 +11,7 @@ To use this application, you'll need to set up a Google Cloud Project and enable
 - Enable the Google Calendar API
 - Create OAuth 2.0 credentials
 - Add `https://www.googleapis.com/auth/calendar.readonly` to scopes
-- Download the credentials and save them as credentials.json
+- Download the credentials and save them as credentials.json in the `internal/auth/assets` directory
 
 The credentials.json file should look like this:
 

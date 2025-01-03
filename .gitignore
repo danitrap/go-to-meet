@@ -1,3 +1,2 @@
-credentials.json
-token.json
+internal/auth/assets/credentials.json
 build/

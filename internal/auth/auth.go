@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/danitrap/go-to-meet/pkg/browser"
@@ -16,12 +17,12 @@ import (
 )
 
 const (
-	credentialFile = "credentials.json"
-	tokenFile      = "token.json"
+	appName   = "go-to-meet"
+	tokenFile = "token.json"
 )
 
 func Setup() (*oauth2.Config, error) {
-	creds, err := loadCredentials(credentialFile)
+	creds, err := loadCredentials()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load credentials: %w", err)
 	}
@@ -38,11 +39,11 @@ func Setup() (*oauth2.Config, error) {
 }
 
 func GetTokenSource(config *oauth2.Config) (oauth2.TokenSource, error) {
-	token, err := loadToken(tokenFile)
+	token, err := loadToken()
 	if err != nil {
 		// If no token exists, start OAuth flow
 		token = getTokenFromWeb(config)
-		if err := saveToken(tokenFile, token); err != nil {
+		if err := saveToken(token); err != nil {
 			return nil, fmt.Errorf("failed to save token: %w", err)
 		}
 	}
@@ -54,7 +55,7 @@ func GetTokenSource(config *oauth2.Config) (oauth2.TokenSource, error) {
 	if _, err := tokenSource.Token(); err != nil {
 		log.Println("Stored token is invalid or cannot be refreshed, getting new token...")
 		token = getTokenFromWeb(config)
-		if err := saveToken(tokenFile, token); err != nil {
+		if err := saveToken(token); err != nil {
 			return nil, fmt.Errorf("failed to save new token: %w", err)
 		}
 		tokenSource = config.TokenSource(context.Background(), token)
@@ -103,8 +104,36 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	return token
 }
 
-func loadToken(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+func getAppDataDir() (string, error) {
+	userConfigDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	appDir := filepath.Join(userConfigDir, "Library", "Application Support", appName)
+	if err := os.MkdirAll(appDir, 0700); err != nil {
+		return "", fmt.Errorf("failed to create app directory: %w", err)
+	}
+
+	return appDir, nil
+}
+
+func getTokenPath() (string, error) {
+	appDir, err := getAppDataDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(appDir, tokenFile), nil
+}
+
+func loadToken() (*oauth2.Token, error) {
+	tokenPath, err := getTokenPath()
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(tokenPath)
 	if err != nil {
 		return nil, err
 	}
@@ -117,8 +146,13 @@ func loadToken(file string) (*oauth2.Token, error) {
 	return token, nil
 }
 
-func saveToken(file string, token *oauth2.Token) error {
-	f, err := os.Create(file)
+func saveToken(token *oauth2.Token) error {
+	tokenPath, err := getTokenPath()
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(tokenPath)
 	if err != nil {
 		return fmt.Errorf("unable to create token file: %w", err)
 	}

@@ -11,6 +11,7 @@ import (
 )
 
 var icons = map[string]string{
+	"empty":   "🧘",
 	"default": "📅",
 	"soon":    "⏰",
 	"now":     "🗣️",
