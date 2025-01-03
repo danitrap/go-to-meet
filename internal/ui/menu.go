@@ -10,6 +10,12 @@ import (
 	"github.com/danitrap/go-to-meet/pkg/models"
 )
 
+var icons = map[string]string{
+	"default": "📅",
+	"soon":    "⏰",
+	"now":     "🗣️",
+}
+
 type App struct {
 	App      *menuet.Application
 	meetings []models.Meeting
@@ -69,25 +75,59 @@ func menuItemsFromMeetings(meetings []models.Meeting) []menuet.MenuItem {
 	return items
 }
 
+func getIconForMeeting(meet models.Meeting) string {
+	timeUntil := time.Until(meet.StartTime)
+
+	if timeUntil <= 0 {
+		return icons["now"]
+	}
+
+	if timeUntil < 5*time.Minute {
+		return icons["soon"]
+	}
+	return icons["default"]
+}
+
+func formatDuration(d time.Duration) string {
+	if d < 0 {
+		return "0m"
+	}
+
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+
+	if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+
+	return fmt.Sprintf("%dm", minutes)
+}
+
+func formatTime(t time.Time) string {
+	d := time.Until(t)
+	if d < 0 {
+		return "now"
+	}
+	return "in " + formatDuration(d)
+}
+
 func (a *App) UpdateMenuDisplay() {
 	if len(a.meetings) == 0 {
 		a.App.SetMenuState(&menuet.MenuState{
-			Title: "📅",
+			Title: icons["empty"],
 		})
 	} else {
 		nextMeeting := a.meetings[0]
-		timeUntil := time.Until(nextMeeting.StartTime)
 
-		var displayTime string
-		if timeUntil < 0 {
-			displayTime = "Now"
-		} else {
-			displayTime = nextMeeting.StartTime.Format("15:04")
-		}
+		icon := getIconForMeeting(nextMeeting)
+
+		displayTime := formatTime(nextMeeting.StartTime)
+
+		title := fmt.Sprintf("%s %s", icon, displayTime)
 
 		// Update menu bar title
 		a.App.SetMenuState(&menuet.MenuState{
-			Title: fmt.Sprintf("📅 %s", displayTime),
+			Title: title,
 		})
 
 	}

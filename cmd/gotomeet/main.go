@@ -2,18 +2,19 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/danitrap/go-to-meet/internal/auth"
 	"github.com/danitrap/go-to-meet/internal/calendar"
 	"github.com/danitrap/go-to-meet/internal/ui"
-	"github.com/danitrap/go-to-meet/pkg/models"
 )
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	app := ui.NewApp()
-	updateCh := make(chan []models.Meeting)
+	updateCh := make(chan bool)
+	tickCh := time.Tick(1 * time.Second)
 
 	go func() {
 		config, err := auth.Setup()
@@ -31,9 +32,14 @@ func main() {
 
 		go calendarService.StartMeetingChecker(updateCh)
 
-		for meetings := range updateCh {
-			log.Println("Updating meetings")
-			app.UpdateMeetings(meetings)
+		for {
+			select {
+			case <-tickCh:
+				app.UpdateMeetings(calendarService.GetMeetings())
+			case <-updateCh:
+				log.Println("Updating meetings")
+				app.UpdateMeetings(calendarService.GetMeetings())
+			}
 		}
 	}()
 

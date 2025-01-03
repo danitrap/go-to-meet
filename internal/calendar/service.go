@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 
 	"github.com/danitrap/go-to-meet/pkg/models"
@@ -20,7 +19,9 @@ const (
 )
 
 type CalendarService struct {
-	service calendar.Service
+	service   calendar.Service
+	meetings  []models.Meeting
+	userEmail string
 }
 
 func NewService(tokenSource oauth2.TokenSource) (*CalendarService, error) {
@@ -29,18 +30,30 @@ func NewService(tokenSource oauth2.TokenSource) (*CalendarService, error) {
 		return nil, fmt.Errorf("failed to create calendar service: %w", err)
 	}
 
+	user, err := srv.Calendars.Get("primary").Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user email: %w", err)
+	}
+
 	return &CalendarService{
-		service: *srv,
+		service:   *srv,
+		userEmail: user.Id,
+		meetings:  make([]models.Meeting, 0),
 	}, nil
 }
 
-func (s *CalendarService) StartMeetingChecker(updateCh chan []models.Meeting) {
+func (s *CalendarService) StartMeetingChecker(updateCh chan bool) {
 	for {
-		meetings := checkUpcomingMeetings(&s.service)
+		meetings := s.checkUpcomingMeetings(&s.service)
 		log.Printf("Found %d upcoming meetings", len(meetings))
-		updateCh <- meetings
-		time.Sleep(30 * time.Second)
+		s.meetings = meetings
+		updateCh <- true
+		time.Sleep(60 * time.Second)
 	}
+}
+
+func (s *CalendarService) GetMeetings() []models.Meeting {
+	return s.meetings
 }
 
 func createCalendarService(tokenSource oauth2.TokenSource) (*calendar.Service, error) {
@@ -62,7 +75,7 @@ func createCalendarService(tokenSource oauth2.TokenSource) (*calendar.Service, e
 	return nil, fmt.Errorf("failed to create calendar service after %d attempts: %w", maxRetries, err)
 }
 
-func checkUpcomingMeetings(srv *calendar.Service) []models.Meeting {
+func (s *CalendarService) checkUpcomingMeetings(srv *calendar.Service) []models.Meeting {
 	var meets []models.Meeting
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -83,23 +96,36 @@ func checkUpcomingMeetings(srv *calendar.Service) []models.Meeting {
 	}
 
 	for _, event := range events.Items {
-		if event.HangoutLink != "" {
-			startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
-			if err != nil {
-				log.Printf("Error parsing start time for event %s: %v", event.Summary, err)
-				continue
-			}
-			meets = append(meets, models.Meeting{
-				Summary:   event.Summary,
-				StartTime: startTime,
-				MeetLink:  event.HangoutLink,
-			})
+		if event.HangoutLink == "" {
+			continue
 		}
-	}
 
-	sort.Slice(meets, func(i, j int) bool {
-		return meets[i].StartTime.Before(meets[j].StartTime)
-	})
+		isRejected := false
+
+		for _, attendee := range event.Attendees {
+			if attendee.Email == s.userEmail {
+				if attendee.ResponseStatus == "declined" {
+					isRejected = true
+					break
+				}
+			}
+		}
+
+		if isRejected {
+			continue
+		}
+
+		startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
+		if err != nil {
+			log.Printf("Error parsing start time for event %s: %v", event.Summary, err)
+			continue
+		}
+		meets = append(meets, models.Meeting{
+			Summary:   event.Summary,
+			StartTime: startTime,
+			MeetLink:  event.HangoutLink,
+		})
+	}
 
 	return meets
 }
