@@ -42,12 +42,11 @@ func NewService(tokenSource oauth2.TokenSource) (*CalendarService, error) {
 	}, nil
 }
 
-func (s *CalendarService) StartMeetingChecker(updateCh chan bool) {
+func (s *CalendarService) StartMeetingChecker() {
 	for {
 		meetings := s.checkUpcomingMeetings(&s.service)
 		log.Printf("Found %d upcoming meetings", len(meetings))
 		s.meetings = meetings
-		updateCh <- true
 		time.Sleep(60 * time.Second)
 	}
 }

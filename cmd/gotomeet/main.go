@@ -13,7 +13,6 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	app := ui.NewApp()
-	updateCh := make(chan bool)
 	tickCh := time.Tick(1 * time.Second)
 
 	go func() {
@@ -30,16 +29,10 @@ func main() {
 			log.Fatalf("Failed to create calendar service: %v", err)
 		}
 
-		go calendarService.StartMeetingChecker(updateCh)
+		go calendarService.StartMeetingChecker()
 
-		for {
-			select {
-			case <-tickCh:
-				app.UpdateMeetings(calendarService.GetMeetings())
-			case <-updateCh:
-				log.Println("Updating meetings")
-				app.UpdateMeetings(calendarService.GetMeetings())
-			}
+		for range tickCh {
+			app.UpdateMeetings(calendarService.GetMeetings())
 		}
 	}()
 

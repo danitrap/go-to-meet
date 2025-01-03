@@ -82,7 +82,7 @@ func getIconForMeeting(meet models.Meeting) string {
 		return icons["now"]
 	}
 
-	if timeUntil < 5*time.Minute {
+	if timeUntil < 2*time.Minute {
 		return icons["soon"]
 	}
 	return icons["default"]
