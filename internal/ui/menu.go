@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/caseymrm/menuet"
@@ -119,22 +120,46 @@ func (a *App) UpdateMenuDisplay() {
 		a.App.SetMenuState(&menuet.MenuState{
 			Title: icons["empty"],
 		})
-	} else {
-		nextMeeting := a.meetings[0]
-
-		icon := getIconForMeeting(nextMeeting)
-
-		// avoids showing 0m left when meeting is in progress
-		startTime := nextMeeting.StartTime.Add(1 * time.Minute)
-
-		displayTime := formatTime(startTime, nextMeeting.EndTime)
-
-		title := fmt.Sprintf("%s %s", icon, displayTime)
-
-		// Update menu bar title
-		a.App.SetMenuState(&menuet.MenuState{
-			Title: title,
-		})
-
+		return
 	}
+
+	var nextMeeting *models.Meeting
+	shortestFutureDuration := time.Duration(math.MaxInt64)
+	now := time.Now()
+
+	for _, meeting := range a.meetings {
+		if now.After(meeting.StartTime) && now.Before(meeting.EndTime) {
+			meetingCopy := meeting
+			nextMeeting = &meetingCopy
+			break
+		}
+
+		timeUntilStart := meeting.StartTime.Sub(now)
+		if timeUntilStart > 0 && timeUntilStart < shortestFutureDuration {
+			shortestFutureDuration = timeUntilStart
+			meetingCopy := meeting
+			nextMeeting = &meetingCopy
+		}
+	}
+
+	if nextMeeting == nil {
+		a.App.SetMenuState(&menuet.MenuState{
+			Title: icons["empty"],
+		})
+		return
+	}
+
+	icon := getIconForMeeting(*nextMeeting)
+
+	// avoids showing 0m left when meeting is in progress
+	startTime := nextMeeting.StartTime.Add(1 * time.Minute)
+
+	displayTime := formatTime(startTime, nextMeeting.EndTime)
+
+	title := fmt.Sprintf("%s %s", icon, displayTime)
+
+	// Update menu bar title
+	a.App.SetMenuState(&menuet.MenuState{
+		Title: title,
+	})
 }
