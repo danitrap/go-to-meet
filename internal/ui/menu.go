@@ -63,9 +63,10 @@ func menuItemsFromMeetings(meetings []models.Meeting) []menuet.MenuItem {
 		for _, meet := range meetings {
 			meet := meet // Create new variable for closure
 			items = append(items, menuet.MenuItem{
-				Text: fmt.Sprintf("%s (%s)",
+				Text: fmt.Sprintf("%s (%s - %s)",
 					meet.Summary,
-					meet.StartTime.Format("15:04")),
+					meet.StartTime.Format("15:04"),
+					meet.EndTime.Format("15:04")),
 				Clicked: func() {
 					browser.Open(meet.MeetLink)
 				},
@@ -104,12 +105,13 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dm", minutes)
 }
 
-func formatTime(t time.Time) string {
-	d := time.Until(t)
-	if d < 0 {
-		return "now"
+func formatTime(s time.Time, e time.Time) string {
+	startDuration := time.Until(s)
+	endDuration := time.Until(e)
+	if startDuration < 0 {
+		return fmt.Sprintf("%s left", formatDuration(endDuration))
 	}
-	return "in " + formatDuration(d)
+	return "in " + formatDuration(startDuration)
 }
 
 func (a *App) UpdateMenuDisplay() {
@@ -122,7 +124,10 @@ func (a *App) UpdateMenuDisplay() {
 
 		icon := getIconForMeeting(nextMeeting)
 
-		displayTime := formatTime(nextMeeting.StartTime)
+		// avoids showing 0m left when meeting is in progress
+		startTime := nextMeeting.StartTime.Add(1 * time.Minute)
+
+		displayTime := formatTime(startTime, nextMeeting.EndTime)
 
 		title := fmt.Sprintf("%s %s", icon, displayTime)
 

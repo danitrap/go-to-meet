@@ -47,7 +47,7 @@ func (s *CalendarService) StartMeetingChecker() {
 		meetings := s.checkUpcomingMeetings(&s.service)
 		log.Printf("Found %d upcoming meetings", len(meetings))
 		s.meetings = meetings
-		time.Sleep(60 * time.Second)
+		time.Sleep(30 * time.Minute)
 	}
 }
 
@@ -119,9 +119,17 @@ func (s *CalendarService) checkUpcomingMeetings(srv *calendar.Service) []models.
 			log.Printf("Error parsing start time for event %s: %v", event.Summary, err)
 			continue
 		}
+
+		endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
+		if err != nil {
+			log.Printf("Error parsing end time for event %s: %v", event.Summary, err)
+			continue
+		}
+
 		meets = append(meets, models.Meeting{
 			Summary:   event.Summary,
 			StartTime: startTime,
+			EndTime:   endTime,
 			MeetLink:  event.HangoutLink,
 		})
 	}
